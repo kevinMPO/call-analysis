@@ -1,6 +1,9 @@
 import streamlit as st
 import openai
-import os
+import tiktoken
+import re
+
+encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
 # Streamlit config
 st.set_page_config(
@@ -52,15 +55,20 @@ if uploaded_file is not None:
         st.title("Generated Original Text 🔊")
         st.write(user_input)
 
-        # Réduire la longueur du texte si nécessaire
-    max_tokens = 9000  # Définir une limite pour éviter de dépasser la limite de tokens du modèle
-    if len(user_input.split()) > max_tokens:
-        user_input = " ".join(user_input.split()[:max_tokens])
-        st.warning("Le texte dépasse la limite maximale de tokens du modèle. Il a été tronqué à 9000 mots.")
+    # Retirer les uuid du texte
+    uuid_pattern = r'\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b\s'
+    user_input = re.sub(uuid_pattern, "", user_input)
+
+    # Réduire la longueur du texte si nécessaire
+    max_tokens = 16_000  # Définir une limite pour éviter de dépasser la limite de tokens du modèle
+    encoded_user_input = encoding.encode(user_input)
+    if len(encoded_user_input) > max_tokens:
+        user_input = encoding.decode(encoded_user_input[:max_tokens])
+        st.warning("Le texte dépasse la limite maximale de tokens du modèle. Il a été tronqué à 16 000 tokens.")
 
     with st.spinner(f"Processing Text ... 💫"):
         model = "gpt-3.5-turbo-16k"
-        system_input = "Tu es le directeur général d’un grand éditeur SAAS, tu dois analyser la démo de notre commercial avec un prospect qui présente notre applicatif, ta réponse dont contenir 3 parties : 1_Les points positifs de cet échange. 2_Les points à améliorer dans sa présentation. 3_ Les fonctionnalités qu’on pourrait développer."
+        system_input = "Tu es le directeur général d'un grand éditeur SAAS, tu dois analyser la démo de notre commercial avec un prospect qui présente notre applicatif, ta réponse dont contenir 3 parties : 1_Les points positifs de cet échange. 2_Les points à améliorer dans sa présentation. 3_ Les fonctionnalités qu'on pourrait développer."
         res = openai.ChatCompletion.create(
           model=model,
           messages=[
